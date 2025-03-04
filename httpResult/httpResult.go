@@ -28,9 +28,14 @@ func GetHttpErrCodeMsg(err error) (uint32, string) {
 		// 此处注意， rpc返回错误一定要用errors.Wrapf()，不然此处无法处理
 		if grpcStatus, ok := status.FromError(causeErr); ok { // grpc err错误
 			grpcMsg := grpcStatus.Message()
+			grpcCode := grpcStatus.Code()
 
 			if grpcMsg != "" {
 				errMsg = grpcMsg
+			}
+
+			if grpcCode != 0 {
+				errCode = uint32(grpcCode)
 			}
 
 		}
