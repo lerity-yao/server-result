@@ -1,5 +1,27 @@
 package xerr
 
+const (
+	LogFType       = "xr_type"
+	LogFResult     = "xr_result"
+	LogFStack      = "xr_stack"
+	LogFAlertLevel = "xr_alert_level"
+
+	LogApiSuccess = "API-SUCCESS"
+	LogApiError   = "API-ERROR"
+	LogRpcSuccess = "RPC-SUCCESS"
+	LogRpcError   = "RPC-ERROR"
+)
+
+// AlertLevel 告警级别类型，限定只能使用 AlertP0~AlertP3
+type AlertLevel string
+
+const (
+	AlertP0 AlertLevel = "P0"
+	AlertP1 AlertLevel = "P1"
+	AlertP2 AlertLevel = "P2"
+	AlertP3 AlertLevel = "P3"
+)
+
 // OK 成功返回
 const OK uint32 = 0
 
