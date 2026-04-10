@@ -13,7 +13,7 @@ go get github.com/lerity-yao/server-result
 ```
 server-result/
 ├── xerr/                  # 错误码定义 & CodeError 错误体系
-│   ├── errMsg.go          # 错误码常量、告警级别常量、日志字段常量
+│   ├── errMsg.go          # 错误码常量、告警级别常量、日志字段常量、AlertField 便捷函数
 │   └── erros.go           # CodeError 结构体、Option 模式、构造函数
 ├── httpResult/            # HTTP 统一响应
 │   ├── httpResult.go      # 5 种响应方法 + 结构化日志
@@ -102,6 +102,18 @@ httpResult.MapErrorResult(r, w, code, msg, xerr.WithAlertLevel(xerr.AlertP3))
 | `xr_result` | 响应/错误摘要 | `{"code":100010,"msg":"用户不存在"}` |
 | `xr_stack` | 错误堆栈 | 完整 `%+v` 堆栈信息 |
 | `xr_alert_level` | 告警级别 | `P0` / `P1` / `P2` / `P3`（无告警时不输出） |
+
+### AlertField 便捷函数
+
+在 logic 中需要手动记录告警级别时，使用 `xerr.AlertField` 直接生成 `logc.LogField`：
+
+```go
+// logic 中显式记录告警级别
+logc.Infow(l.ctx, "关键操作完成", xerr.AlertField(xerr.AlertP1))
+logc.Errorw(l.ctx, "外部服务超时", xerr.AlertField(xerr.AlertP0))
+```
+
+> 统一使用 `xerr.AlertField()` 代替手动 `logc.Field(xerr.LogFAlertLevel, ...)`，保证字段名一致性。
 
 ### Loki 查询示例
 

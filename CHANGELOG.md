@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.5
+
+### Features
+
+- **AlertField 便捷函数**：新增 `xerr.AlertField(level)` 函数，返回 `logc.LogField`，支持在 `logc.Infow` / `logc.Errorw` 中直接传入告警级别，无需手动拼装 `logc.Field(xerr.LogFAlertLevel, ...)`
+
 ## v0.0.4
 
 ### Features

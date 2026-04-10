@@ -1,5 +1,7 @@
 package xerr
 
+import "github.com/zeromicro/go-zero/core/logc"
+
 const (
 	LogFType       = "xr_type"
 	LogFResult     = "xr_result"
@@ -85,4 +87,10 @@ func IsCodeErr(errCode uint32) bool {
 	} else {
 		return false
 	}
+}
+
+// AlertField 返回告警级别的 logc.LogField，便于在 logc.Infow / logc.Errorw 中直接使用。
+// 用法: logc.Infow(ctx, "msg", xerr.AlertField(xerr.AlertP1))
+func AlertField(level AlertLevel) logc.LogField {
+	return logc.Field(LogFAlertLevel, level)
 }
