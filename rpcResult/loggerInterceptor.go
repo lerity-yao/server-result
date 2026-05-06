@@ -36,6 +36,9 @@ func LoggerInterceptor(ctx context.Context, req interface{}, info *grpc.UnarySer
 		if al := e.GetAlertLevel(); al != "" {
 			fields = append(fields, logc.Field(xerr.LogFAlertLevel, al))
 		}
+		if ad := e.GetAlertData(); len(ad) > 0 {
+			fields = append(fields, logc.Field(xerr.LogFAlertData, ad))
+		}
 		logc.Errorw(ctx, e.GetErrMsg(), fields...)
 
 		//把 zrpc错误转成自定义错误,所以返回错误的时候需要使用errors.Wrapf()来返回错误

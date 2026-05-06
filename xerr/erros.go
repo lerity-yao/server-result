@@ -7,6 +7,7 @@ type CodeError struct {
 	errCode    uint32
 	errMsg     string
 	alertLevel AlertLevel
+	alertData  map[string]any
 }
 
 type Option func(*CodeError)
@@ -15,7 +16,18 @@ func WithAlertLevel(level AlertLevel) Option {
 	return func(e *CodeError) { e.alertLevel = level }
 }
 
+func WithAlertData(key string, value any) Option {
+	return func(e *CodeError) {
+		if e.alertData == nil {
+			e.alertData = make(map[string]any)
+		}
+		e.alertData[key] = value
+	}
+}
+
 func (e *CodeError) GetAlertLevel() AlertLevel { return e.alertLevel }
+
+func (e *CodeError) GetAlertData() map[string]any { return e.alertData }
 
 func applyOpts(e *CodeError, opts []Option) {
 	for _, opt := range opts {
@@ -31,6 +43,16 @@ func ExtractAlertLevel(opts ...Option) AlertLevel {
 	e := &CodeError{}
 	applyOpts(e, opts)
 	return e.alertLevel
+}
+
+// ExtractAlertData 从 Option 中提取 alertData，供 httpResult 显式调用方法使用
+func ExtractAlertData(opts ...Option) map[string]any {
+	if len(opts) == 0 {
+		return nil
+	}
+	e := &CodeError{}
+	applyOpts(e, opts)
+	return e.alertData
 }
 
 // GetErrCode 返回给前端的错误码

@@ -12,10 +12,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func GetHttpErrCodeMsg(err error) (uint32, string, xerr.AlertLevel) {
+func GetHttpErrCodeMsg(err error) (uint32, string, xerr.AlertLevel, map[string]any) {
 	errCode := xerr.ServerCommonError
 	errMsg := "服务器开小差啦，稍后再来试一试"
 	var alertLevel xerr.AlertLevel
+	var alertData map[string]any
 
 	// 追溯错误链中最初始的错误 （此处可以追溯出rpc服务的错误）
 	// 所有逻辑中，最终返回的错误，都应该使用 errors.Wrapf()来返回错误
@@ -26,6 +27,7 @@ func GetHttpErrCodeMsg(err error) (uint32, string, xerr.AlertLevel) {
 		errCode = e.GetErrCode()
 		errMsg = e.GetErrMsg()
 		alertLevel = e.GetAlertLevel()
+		alertData = e.GetAlertData()
 	} else {
 		// 只处理 grpc 的状态码和消息。通畅情况下，不会存在这种情况，因为 rpcResult.LoggerInterceptor的方法会对grpc的结果进行转换
 		// 此处注意， rpc返回错误一定要用errors.Wrapf()，不然此处无法处理
@@ -44,11 +46,11 @@ func GetHttpErrCodeMsg(err error) (uint32, string, xerr.AlertLevel) {
 		}
 	}
 
-	return errCode, errMsg, alertLevel
+	return errCode, errMsg, alertLevel, alertData
 }
 
 // buildErrFields 从 error 链构建日志字段（HttpResult / HttpStatusResult 用）
-func buildErrFields(err error, alertLevel xerr.AlertLevel, result map[string]any) []logc.LogField {
+func buildErrFields(err error, alertLevel xerr.AlertLevel, alertData map[string]any, result map[string]any) []logc.LogField {
 	fields := []logc.LogField{
 		logc.Field(xerr.LogFType, xerr.LogApiError),
 		logc.Field(xerr.LogFResult, result),
@@ -56,6 +58,9 @@ func buildErrFields(err error, alertLevel xerr.AlertLevel, result map[string]any
 	}
 	if alertLevel != "" {
 		fields = append(fields, logc.Field(xerr.LogFAlertLevel, alertLevel))
+	}
+	if len(alertData) > 0 {
+		fields = append(fields, logc.Field(xerr.LogFAlertData, alertData))
 	}
 	return fields
 }
@@ -68,6 +73,9 @@ func buildOptFields(result map[string]any, opts ...xerr.Option) []logc.LogField 
 	}
 	if al := xerr.ExtractAlertLevel(opts...); al != "" {
 		fields = append(fields, logc.Field(xerr.LogFAlertLevel, al))
+	}
+	if ad := xerr.ExtractAlertData(opts...); len(ad) > 0 {
+		fields = append(fields, logc.Field(xerr.LogFAlertData, ad))
 	}
 	return fields
 }
@@ -90,9 +98,9 @@ func HttpResult(r *http.Request, w http.ResponseWriter, resp interface{}, err er
 	}
 
 	//错误返回
-	errCode, errMsg, alertLevel := GetHttpErrCodeMsg(err)
+	errCode, errMsg, alertLevel, alertData := GetHttpErrCodeMsg(err)
 
-	logc.Errorw(r.Context(), errMsg, buildErrFields(err, alertLevel, map[string]any{"code": errCode, "msg": errMsg})...)
+	logc.Errorw(r.Context(), errMsg, buildErrFields(err, alertLevel, alertData, map[string]any{"code": errCode, "msg": errMsg})...)
 	httpx.WriteJson(w, http.StatusOK, Error(traceId, spanId, errCode, errMsg))
 	return
 }
@@ -142,9 +150,9 @@ func HttpStatusResult(r *http.Request, w http.ResponseWriter, statusCode int, er
 	spanId := trace.SpanIDFromContext(r.Context())
 
 	//错误返回
-	errCode, errMsg, alertLevel := GetHttpErrCodeMsg(err)
+	errCode, errMsg, alertLevel, alertData := GetHttpErrCodeMsg(err)
 
-	logc.Errorw(r.Context(), errMsg, buildErrFields(err, alertLevel, map[string]any{"code": errCode, "msg": errMsg, "status": statusCode})...)
+	logc.Errorw(r.Context(), errMsg, buildErrFields(err, alertLevel, alertData, map[string]any{"code": errCode, "msg": errMsg, "status": statusCode})...)
 
 	httpx.WriteJson(w, statusCode, Error(traceId, spanId, errCode, errMsg))
 }

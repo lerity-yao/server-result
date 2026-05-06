@@ -13,8 +13,8 @@ go get github.com/lerity-yao/server-result
 ```
 server-result/
 ├── xerr/                  # 错误码定义 & CodeError 错误体系
-│   ├── errMsg.go          # 错误码常量、告警级别常量、日志字段常量、AlertField 便捷函数
-│   └── erros.go           # CodeError 结构体、Option 模式、构造函数
+│   ├── errMsg.go          # 错误码常量、告警级别常量、日志字段常量、AlertField / AlertDataField 便捷函数
+│   └── erros.go           # CodeError 结构体、Option 模式（WithAlertLevel / WithAlertData）、构造函数
 ├── httpResult/            # HTTP 统一响应
 │   ├── httpResult.go      # 5 种响应方法 + 结构化日志
 │   └── responseType.go    # 响应体结构定义
@@ -82,15 +82,37 @@ httpResult.MapErrorResult(r, w, code, msg, xerr.WithAlertLevel(xerr.AlertP3))
 
 > `WithAlertLevel` 参数类型为 `AlertLevel`，只能传 `AlertP0`~`AlertP3` 常量。
 
+## 告警数据
+
+通过 `WithAlertData(key, value)` Option 注入业务关键字段，日志输出 `xr_alert_data` 字段供 Loki 告警时提取。每次调用传入一个键值对，多次调用自动累加。
+
+```go
+// 构造 CodeError 时注入告警数据
+xerr.NewErrCodeMsg(100010, "订单不存在",
+    xerr.WithAlertLevel(xerr.AlertP1),
+    xerr.WithAlertData("order_no", "ORD123"),
+    xerr.WithAlertData("user_id", "U456"),
+)
+
+// 显式调用方法中注入告警数据
+httpResult.ParamErrorResult(r, w, err,
+    xerr.WithAlertLevel(xerr.AlertP2),
+    xerr.WithAlertData("order_no", "ORD456"),
+)
+
+// logic 中手动记录告警数据
+logc.Errorw(l.ctx, "订单处理失败", xerr.AlertDataField(map[string]any{"order_no": "ORD123"}))
+```
+
 ## HTTP 响应方法
 
-| 方法 | 用途 | alertLevel 来源 |
-|------|------|-----------------|
-| `HttpResult` | 通用响应（成功/失败） | 自动从 CodeError 提取 |
-| `HttpStatusResult` | 自定义 HTTP 状态码 | 自动从 CodeError 提取 |
-| `ParamErrorResult` | 参数校验错误 | `...xerr.Option` 显式传入 |
-| `MdErrorResult` | 中间件错误 | `...xerr.Option` 显式传入 |
-| `MapErrorResult` | 自定义 code + msg | `...xerr.Option` 显式传入 |
+| 方法 | 用途 | alertLevel 来源 | alertData 来源 |
+|------|------|-----------------|---------------|
+| `HttpResult` | 通用响应（成功/失败） | 自动从 CodeError 提取 | 自动从 CodeError 提取 |
+| `HttpStatusResult` | 自定义 HTTP 状态码 | 自动从 CodeError 提取 | 自动从 CodeError 提取 |
+| `ParamErrorResult` | 参数校验错误 | `...xerr.Option` 显式传入 | `...xerr.Option` 显式传入 |
+| `MdErrorResult` | 中间件错误 | `...xerr.Option` 显式传入 | `...xerr.Option` 显式传入 |
+| `MapErrorResult` | 自定义 code + msg | `...xerr.Option` 显式传入 | `...xerr.Option` 显式传入 |
 
 ## 结构化日志字段
 
@@ -102,18 +124,22 @@ httpResult.MapErrorResult(r, w, code, msg, xerr.WithAlertLevel(xerr.AlertP3))
 | `xr_result` | 响应/错误摘要 | `{"code":100010,"msg":"用户不存在"}` |
 | `xr_stack` | 错误堆栈 | 完整 `%+v` 堆栈信息 |
 | `xr_alert_level` | 告警级别 | `P0` / `P1` / `P2` / `P3`（无告警时不输出） |
+| `xr_alert_data` | 告警数据 | `{"order_no":"ORD123","user_id":"U456"}`（无数据时不输出） |
 
-### AlertField 便捷函数
+### AlertField / AlertDataField 便捷函数
 
-在 logic 中需要手动记录告警级别时，使用 `xerr.AlertField` 直接生成 `logc.LogField`：
+在 logic 中需要手动记录告警级别或告警数据时，使用便捷函数直接生成 `logc.LogField`：
 
 ```go
 // logic 中显式记录告警级别
 logc.Infow(l.ctx, "关键操作完成", xerr.AlertField(xerr.AlertP1))
 logc.Errorw(l.ctx, "外部服务超时", xerr.AlertField(xerr.AlertP0))
+
+// logic 中显式记录告警数据
+logc.Errorw(l.ctx, "订单处理失败", xerr.AlertDataField(map[string]any{"order_no": "ORD123"}))
 ```
 
-> 统一使用 `xerr.AlertField()` 代替手动 `logc.Field(xerr.LogFAlertLevel, ...)`，保证字段名一致性。
+> 统一使用 `xerr.AlertField()` / `xerr.AlertDataField()` 代替手动 `logc.Field(xerr.LogFAlertLevel, ...)` / `logc.Field(xerr.LogFAlertData, ...)`，保证字段名一致性。
 
 ### Loki 查询示例
 
@@ -126,6 +152,12 @@ logc.Errorw(l.ctx, "外部服务超时", xerr.AlertField(xerr.AlertP0))
 
 # 查 RPC 错误中的 P1 告警
 {app="my-service"} | json | xr_type="RPC-ERROR" | xr_alert_level="P1"
+
+# 按订单号查询告警数据
+{app="my-service"} | json | xr_alert_data_order_no="ORD123"
+
+# 查所有包含告警数据的错误
+{app="my-service"} | json | xr_alert_data != ""
 ```
 
 ## 预定义错误码

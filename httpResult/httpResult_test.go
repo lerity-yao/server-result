@@ -54,6 +54,22 @@ func TestHttpResult_CodeError_WithAlert(t *testing.T) {
 	t.Logf("Response Body: %s", w.Body.String())
 }
 
+func TestHttpResult_CodeError_WithAlertData(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/api/order/create", nil)
+	r = r.WithContext(context.Background())
+	w := httptest.NewRecorder()
+
+	err := errors.Wrapf(xerr.NewErrCodeMsg(100010, "订单不存在",
+		xerr.WithAlertLevel(xerr.AlertP1),
+		xerr.WithAlertData("order_no", "ORD123"),
+		xerr.WithAlertData("user_id", "U456"),
+	), "查询订单失败")
+	HttpResult(r, w, nil, err)
+
+	t.Logf("HTTP Status: %d", w.Code)
+	t.Logf("Response Body: %s", w.Body.String())
+}
+
 func TestHttpResult_ServerError(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/api/order/create", nil)
 	r = r.WithContext(context.Background())
@@ -85,6 +101,21 @@ func TestParamErrorResult_WithAlert(t *testing.T) {
 
 	err := errors.New("name is required")
 	ParamErrorResult(r, w, err, xerr.WithAlertLevel(xerr.AlertP2))
+
+	t.Logf("HTTP Status: %d", w.Code)
+	t.Logf("Response Body: %s", w.Body.String())
+}
+
+func TestParamErrorResult_WithAlertData(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/api/order/create", nil)
+	r = r.WithContext(context.Background())
+	w := httptest.NewRecorder()
+
+	err := errors.New("order_no is required")
+	ParamErrorResult(r, w, err,
+		xerr.WithAlertLevel(xerr.AlertP2),
+		xerr.WithAlertData("order_no", "ORD456"),
+	)
 
 	t.Logf("HTTP Status: %d", w.Code)
 	t.Logf("Response Body: %s", w.Body.String())
@@ -129,6 +160,20 @@ func TestMapErrorResult_WithAlert(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	MapErrorResult(r, w, xerr.PermitNoAccess, "无法操作他人订单", xerr.WithAlertLevel(xerr.AlertP1))
+
+	t.Logf("HTTP Status: %d", w.Code)
+	t.Logf("Response Body: %s", w.Body.String())
+}
+
+func TestMapErrorResult_WithAlertData(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/api/order/pay", nil)
+	r = r.WithContext(context.Background())
+	w := httptest.NewRecorder()
+
+	MapErrorResult(r, w, xerr.PermitNoAccess, "无法操作他人订单",
+		xerr.WithAlertLevel(xerr.AlertP1),
+		xerr.WithAlertData("order_no", "ORD789"),
+	)
 
 	t.Logf("HTTP Status: %d", w.Code)
 	t.Logf("Response Body: %s", w.Body.String())

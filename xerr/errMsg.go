@@ -7,6 +7,7 @@ const (
 	LogFResult     = "xr_result"
 	LogFStack      = "xr_stack"
 	LogFAlertLevel = "xr_alert_level"
+	LogFAlertData  = "xr_alert_data"
 
 	LogApiSuccess = "API-SUCCESS"
 	LogApiError   = "API-ERROR"
@@ -93,4 +94,10 @@ func IsCodeErr(errCode uint32) bool {
 // 用法: logc.Infow(ctx, "msg", xerr.AlertField(xerr.AlertP1))
 func AlertField(level AlertLevel) logc.LogField {
 	return logc.Field(LogFAlertLevel, level)
+}
+
+// AlertDataField 返回告警数据的 logc.LogField，便于在 logc.Infow / logc.Errorw 中直接使用。
+// 用法: logc.Infow(ctx, "msg", xerr.AlertDataField(map[string]any{"order_no": "ORD123"}))
+func AlertDataField(data map[string]any) logc.LogField {
+	return logc.Field(LogFAlertData, data)
 }
